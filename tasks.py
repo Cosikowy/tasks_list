@@ -4,9 +4,9 @@ import json
 import hashlib
 import os
 from pprint import pprint
+import datetime
 
-
-def get_arguments(created=False, hash_required=True):
+def get_arguments(created=False, hash_required=True, when=False):
     ap = argparse.ArgumentParser(prog=sys.argv[1])
     ap.add_argument('type')
     if created:
@@ -17,6 +17,8 @@ def get_arguments(created=False, hash_required=True):
                         help='Description of task', required=True)
     if hash_required:
         ap.add_argument('task_hash')
+    if when:
+        ap.add_argument('when')
     args = vars(ap.parse_args())
     del args['type']
     return args
@@ -32,10 +34,13 @@ def save_tasks(tasks):
     with open('tasks.json', 'w') as tasks_file:
         json.dump(tasks, tasks_file)
 
+def format_date(date):
+    return str(datetime.datetime.strptime(date, '%Y-%m-%d').date())
 
 def add_task():
     tasks = read_tasks()
     task = get_arguments(created=True, hash_required=False)
+    task['deadline'] = format_date(task['deadline'])
     task_hash = hashlib.sha1(json.dumps(task).encode()).hexdigest()
     tasks[task_hash] = task
     save_tasks(tasks)
@@ -65,7 +70,16 @@ def update_task():
 
 def list_tasks():
     tasks = read_tasks()
-    pprint(tasks)
+    args = get_arguments(hash_required=False, when=True)
+    if args['when'] == 'all':
+        pprint(tasks)
+    elif args['when'] == 'today':
+        to_print = {}
+        for task_hash, task in tasks.items():
+            if task['deadline'] == str(datetime.datetime.today().date()):
+                to_print[task_hash] = task
+        pprint(to_print)
+                
 
 
 if __name__ == '__main__':
